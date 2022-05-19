@@ -5,13 +5,15 @@ variables:
   webRepository: 'web'
   tag: '$(Build.BuildId)'
 
-- stage: 'Build'
+- stages: 'Build'
   displayName: 'Build and push'
   jobs:  
   - job: 'Build'
     displayName: 'Build job'
     pool:
       vmImage: 'ubuntu-20.04'
+      demands:
+      -npm
     steps:
     - task: Docker@2
       displayName: 'Build and push the image to container registry'
@@ -27,14 +29,25 @@ variables:
 - stage: 'Deploy'
   displayName: 'Deploy the container'
   dependsOn: Build
+  condition: |
+    and
+    (
+      succeeded(),
+      eq(variables['Build.SourceBranchName'], variables['releaseBranchName'])
+    )
   jobs:
   - job: 'Deploy'
     displayName: 'Deploy job'
     pool:
       vmImage: 'ubuntu-20.04'
+      environment: dev
     variables:
     - group: Release
+    strategy:
+      runOnce:
+        deploy:
     steps:
+    
     - task: AzureWebAppContainer@1
       inputs:
        appName: $(WebAppName)
